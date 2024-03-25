@@ -2,6 +2,8 @@ package scraper
 
 import (
 	"context"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/chromedp/chromedp"
@@ -21,6 +23,18 @@ const (
 	MAX_PAGE_ELE_SEL = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div:nth-child(6) > div.css-l0mhay-emotion--Pagination--SearchPagination > a:nth-child(4)`
 )
 
+func errorResolver(errChan <-chan error, errLog *log.Logger, errLmt int) {
+	numErr := 0
+	for err := range errChan {
+		numErr++
+		if numErr >= errLmt {
+			log.Fatal("something really wrong...check logs")
+		}
+
+		errLog.Println(err)
+	}
+}
+
 // sets up the process of scraping vehicles (grabs max page to loop through)
 func Scrape(url string) (map[brand][]Vehicle, error) {
 	ret := make(map[brand][]Vehicle)
@@ -35,6 +49,20 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 
 	taskCtx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
+
+	errLogFile, err := os.Create("errLog")
+	if err != nil {
+		return nil, err
+	}
+	defer errLogFile.Close()
+
+	// create logger
+	errLog := log.New(errLogFile, "err:", log.Lshortfile|log.LstdFlags)
+
+	// error channel
+	errChan := make(chan error)
+
+	go errorResolver(errChan, errLog, 3)
 
 	var maxpages string
 	if err := chromedp.Run(taskCtx,
@@ -56,7 +84,7 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 			url = url[:len(url)-1] + strconv.Itoa(i+1)
 			veh, err := scrapeInventory(url, opts)
 			if err != nil {
-
+				errChan <- err
 			}
 		}(i)
 		url = url[:len(url)-1] + strconv.Itoa(i+1)
