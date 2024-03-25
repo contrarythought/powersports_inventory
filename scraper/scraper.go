@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/chromedp/chromedp"
 )
@@ -62,6 +63,7 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 	// error channel
 	errChan := make(chan error)
 
+	// start thread to handle concurrent errors
 	go errorResolver(errChan, errLog, 3)
 
 	var maxpages string
@@ -78,22 +80,27 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 		return nil, err
 	}
 
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	vehicles := []Vehicle{}
 	for i := 0; i < max; i++ {
+		wg.Add(1)
 		go func(i int) {
+			wg.Done()
 			url = url[:len(url)-1] + strconv.Itoa(i+1)
 			veh, err := scrapeInventory(url, opts)
 			if err != nil {
 				errChan <- err
 			}
+
+			mu.Lock()
+			vehicles = append(vehicles, veh...)
+			mu.Unlock()
 		}(i)
-		url = url[:len(url)-1] + strconv.Itoa(i+1)
-		veh, err := scrapeInventory(url, opts)
-		if err != nil {
-			return nil, err
-		}
-		vehicles = append(vehicles, veh...)
 	}
+
+	wg.Wait()
 
 	for _, v := range vehicles {
 		ret[brand(v.Brand)] = append(ret[brand(v.Brand)], v)
