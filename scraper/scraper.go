@@ -85,6 +85,8 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
+	// figure out how to buffer channel of urls to create less work for the server
+
 	vehicles := []Vehicle{}
 	for i := 0; i < max; i++ {
 		wg.Add(1)
