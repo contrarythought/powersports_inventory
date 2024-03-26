@@ -26,9 +26,11 @@ func main() {
 	}
 	defer outFile.Close()
 
+	numInventory := 0
 	for k, v := range vehicleMap {
 		fmt.Fprintln(outFile, k)
 		for _, veh := range v {
+			numInventory++
 			fmt.Fprintln(outFile, "\t", veh.Brand, "-->", veh.Model, "-->", veh.Price)
 		}
 		fmt.Fprintln(outFile)
