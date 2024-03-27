@@ -65,6 +65,7 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 
 	// error channel
 	errChan := make(chan error)
+	defer close(errChan)
 
 	// start thread to handle concurrent errors
 	go errorResolver(errChan, errLog, 3)
@@ -88,40 +89,42 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 
 	// figure out how to buffer channel of urls to create less work for the server
 
-	// start workers
+	scrapeCtx, scrapeCancel := context.WithCancel(context.Background())
+
 	vehicles := []Vehicle{}
 	urlChan := make(chan string, NUM_WORKERS)
-	for i := 0; i < NUM_WORKERS; i++ {
-		go func() {
-			for url := range urlChan {
-				vehs, err := scrapeInventory(url, opts)
-				if err != nil {
-					errChan <- err
-				}
+	defer close(urlChan)
 
-				mu.Lock()
-				vehicles = append(vehicles, vehs...)
-				mu.Unlock()
+	// start workers to take in url and scrape it
+	for i := 0; i < NUM_WORKERS; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case url := <-urlChan:
+					vehs, err := scrapeInventory(url, opts)
+					if err != nil {
+						errChan <- err
+					}
+
+					mu.Lock()
+					vehicles = append(vehicles, vehs...)
+					mu.Unlock()
+				case <-scrapeCtx.Done():
+					if len(urlChan) == 0 {
+						return
+					}
+				}
 			}
 		}()
 	}
 
 	for i := 0; i < max; i++ {
-		wg.Add(1)
-		go func(i int) {
-			wg.Done()
-			url = url[:len(url)-1] + strconv.Itoa(i+1)
-			veh, err := scrapeInventory(url, opts)
-			if err != nil {
-				errChan <- err
-			}
-
-			mu.Lock()
-			vehicles = append(vehicles, veh...)
-			mu.Unlock()
-		}(i)
+		url = url[:len(url)-1] + strconv.Itoa(i+1)
 	}
 
+	scrapeCancel()
 	wg.Wait()
 
 	for _, v := range vehicles {
