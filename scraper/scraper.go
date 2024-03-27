@@ -24,6 +24,7 @@ const (
 	USER_AGENT       = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`
 	WAIT_ELEMENT     = `#Layer_2`
 	MAX_PAGE_ELE_SEL = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div:nth-child(6) > div.css-l0mhay-emotion--Pagination--SearchPagination > a:nth-child(4)`
+	NUM_WORKERS      = 5
 )
 
 func errorResolver(errChan <-chan error, errLog *log.Logger, errLmt int) {
@@ -87,7 +88,24 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 
 	// figure out how to buffer channel of urls to create less work for the server
 
+	// start workers
 	vehicles := []Vehicle{}
+	urlChan := make(chan string, NUM_WORKERS)
+	for i := 0; i < NUM_WORKERS; i++ {
+		go func() {
+			for url := range urlChan {
+				vehs, err := scrapeInventory(url, opts)
+				if err != nil {
+					errChan <- err
+				}
+
+				mu.Lock()
+				vehicles = append(vehicles, vehs...)
+				mu.Unlock()
+			}
+		}()
+	}
+
 	for i := 0; i < max; i++ {
 		wg.Add(1)
 		go func(i int) {
