@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"testing"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -47,6 +48,57 @@ func TestScraper(t *testing.T) {
 		fmt.Println(name, " ", price)
 
 	}
+}
+
+func TestConcur(t *testing.T) {
+	maxNum := 50
+	maxWork := 10
+	numChan := make(chan int, maxWork)
+	defer close(numChan)
+
+	validate := [50]int{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for i := 0; i < maxWork; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case num := <-numChan:
+					fmt.Println(num)
+
+					mu.Lock()
+					validate[num-1] = num
+					mu.Unlock()
+
+				case <-ctx.Done():
+					if len(numChan) == 0 {
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	for i := 1; i <= maxNum; i++ {
+		numChan <- i
+	}
+
+	cancel()
+	wg.Wait()
+
+	fmt.Println("finished!")
+	fmt.Println("validating:")
+
+	for _, v := range validate {
+		fmt.Println(v)
+	}
+
 }
 
 // TODO
