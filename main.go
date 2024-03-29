@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +15,24 @@ const (
 	ENDING_ELEMENT = `#Layer_1-2 > path:nth-child(3)`
 )
 
+type Creds struct {
+	User string `json:"user"`
+	Pass string `json:"pass"`
+}
+
+// TODO
+func DBConnStr() string {
+	connStr := ""
+
+	return connStr
+}
+
 func main() {
+	db, err := sql.Open("postgres", DBConnStr())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	vehicleMap, err := scraper.Scrape(URL)
 	if err != nil {
 		log.Fatal(err)
