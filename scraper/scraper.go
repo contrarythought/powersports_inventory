@@ -12,7 +12,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-type brand string
+type Brand string
 
 type Vehicle struct {
 	Brand string
@@ -40,8 +40,8 @@ func errorResolver(errChan <-chan error, errLog *log.Logger, errLmt int) {
 }
 
 // sets up the process of scraping vehicles (grabs max page to loop through)
-func Scrape(url string) (map[brand][]Vehicle, error) {
-	ret := make(map[brand][]Vehicle)
+func Scrape(url string) (map[Brand][]Vehicle, error) {
+	ret := make(map[Brand][]Vehicle)
 
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.UserAgent(USER_AGENT),
@@ -128,7 +128,7 @@ func Scrape(url string) (map[brand][]Vehicle, error) {
 	wg.Wait()
 
 	for _, v := range vehicles {
-		ret[brand(v.Brand)] = append(ret[brand(v.Brand)], v)
+		ret[Brand(v.Brand)] = append(ret[Brand(v.Brand)], v)
 	}
 
 	return ret, nil
