@@ -1,6 +1,8 @@
 package dbupload
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestTime(t *testing.T) {
 	if err := Upload(nil, nil); err != nil {
