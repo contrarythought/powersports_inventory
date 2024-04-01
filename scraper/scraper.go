@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
+	"rumbleon_inventory/errorhandling"
 	"strconv"
 	"sync"
 
@@ -27,20 +27,8 @@ const (
 	NUM_WORKERS      = 5
 )
 
-func errorResolver(errChan <-chan error, errLog *log.Logger, errLmt int) {
-	numErr := 0
-	for err := range errChan {
-		numErr++
-		if numErr >= errLmt {
-			log.Fatal("something really wrong...check logs")
-		}
-
-		errLog.Println(err)
-	}
-}
-
 // sets up the process of scraping vehicles (grabs max page to loop through)
-func Scrape(url string) (map[Brand][]Vehicle, error) {
+func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Vehicle, error) {
 	ret := make(map[Brand][]Vehicle)
 
 	opts := []chromedp.ExecAllocatorOption{
@@ -54,21 +42,8 @@ func Scrape(url string) (map[Brand][]Vehicle, error) {
 	taskCtx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
-	errLogFile, err := os.Create("errLog")
-	if err != nil {
-		return nil, err
-	}
-	defer errLogFile.Close()
-
-	// create logger
-	errLog := log.New(errLogFile, "err:", log.Lshortfile|log.LstdFlags)
-
-	// error channel
-	errChan := make(chan error)
-	defer close(errChan)
-
 	// start thread to handle concurrent errors
-	go errorResolver(errChan, errLog, 3)
+	go errorhandling.ErrorResolver(errChan, errLog, 3)
 
 	var maxpages string
 	if err := chromedp.Run(taskCtx,

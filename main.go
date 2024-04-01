@@ -79,7 +79,17 @@ func main() {
 	}
 	defer db.Close()
 
-	vehicleMap, err := scraper.Scrape(URL)
+	errFile, err := os.Create("errlog.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer errFile.Close()
+
+	errLog := log.New(errFile, "err:", log.Lshortfile|log.LstdFlags)
+	errChan := make(chan error)
+	defer close(errChan)
+
+	vehicleMap, err := scraper.Scrape(URL, errChan, errLog)
 	if err != nil {
 		log.Fatal(err)
 	}
