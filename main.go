@@ -94,7 +94,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := dbupload.Upload(db, vehicleMap); err != nil {
+	if err := dbupload.Upload(db, vehicleMap, errChan, errLog); err != nil {
 		log.Fatal(err)
 	}
 
