@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -15,38 +17,84 @@ type Product struct {
 	name, price string
 }
 
+func TestScrape(t *testing.T) {
+	testLog, err := os.Create("errLogTest.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	defer testLog.Close()
+
+	errChan := make(chan error)
+	defer close(errChan)
+
+	errLog := log.New(testLog, "err:", log.Lshortfile|log.LstdFlags)
+
+	vehicleMap, err := Scrape(URL, errChan, errLog)
+	if err != nil {
+		t.Error(err)
+	}
+
+	output, err := os.Create("testoutput.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	defer output.Close()
+
+	for br, vehs := range vehicleMap {
+		fmt.Fprintln(output, br)
+		for _, v := range vehs {
+			fmt.Fprintln(output, "\t", v.Model, "-->", v.Price)
+		}
+	}
+
+}
+
 func TestScraper(t *testing.T) {
 	options := []chromedp.ExecAllocatorOption{
 		chromedp.UserAgent(`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`),
 	}
 
-	ctx, cancel := chromedp.NewExecAllocator(context.Background(), options...)
-	defer cancel()
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), options...)
+	defer allocCancel()
 
-	ctx, cancel = chromedp.NewContext(ctx)
-	defer cancel()
+	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
+	defer taskCancel()
 
 	var nodes []*cdp.Node
-	err := chromedp.Run(ctx,
-		chromedp.Navigate(`https://scrapingclub.com/exercise/list_infinite_scroll/`),
-		chromedp.WaitVisible("body"),
-		chromedp.Nodes(".post", &nodes, chromedp.ByQueryAll),
+	err := chromedp.Run(taskCtx,
+		chromedp.Navigate(URL),
+		chromedp.WaitVisible(ENDING_ELEMENT),
+		chromedp.Nodes(".ant-card-body", &nodes, chromedp.ByQueryAll),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 
-	var name, price string
+	var brand, model, price string
 	for _, node := range nodes {
-		err = chromedp.Run(ctx,
-			chromedp.Text("h4", &name, chromedp.ByQuery, chromedp.FromNode(node)),
-			chromedp.Text("h5", &price, chromedp.ByQuery, chromedp.FromNode(node)),
+		err = chromedp.Run(taskCtx,
+			chromedp.Text(`div.ant-card-body > div > div:nth-child(2) > span`, &brand, chromedp.ByQuery, chromedp.FromNode(node)),
+			chromedp.Text(`div.ant-card-body > div > div:nth-child(3) > span`, &model, chromedp.ByQuery, chromedp.FromNode(node)),
+			chromedp.Text(`span.ant-typography > strong`, &price, chromedp.ByQuery, chromedp.FromNode(node)),
 		)
 		if err != nil {
-			fmt.Println("err: ", err)
+			t.Error(err)
 		}
-		fmt.Println(name, " ", price)
 
+		fmt.Println(brand)
+		fmt.Println(model)
+		fmt.Println(price)
+		fmt.Println()
+	}
+}
+
+func TestURL(t *testing.T) {
+	url := URL
+	origLen := len(url)
+
+	for i := 0; i < 200; i++ {
+		url = url[:origLen-1] + strconv.Itoa(i+1)
+		fmt.Println(url)
 	}
 }
 
@@ -101,9 +149,35 @@ func TestConcur(t *testing.T) {
 
 }
 
-// TODO
 func TestMaxPage(t *testing.T) {
+	url := `https://www.rumbleon.com/buy?page=1`
 
+	opts := []chromedp.ExecAllocatorOption{
+		chromedp.UserAgent(USER_AGENT),
+		chromedp.Headless,
+	}
+
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer allocCancel()
+
+	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
+	defer taskCancel()
+
+	var maxpages string
+	if err := chromedp.Run(taskCtx,
+		chromedp.Navigate(url),
+		chromedp.WaitVisible(WAIT_ELEMENT),
+		chromedp.Text(MAX_PAGE_ELE_SEL, &maxpages, chromedp.ByQuery),
+	); err != nil {
+		t.Error(err)
+	}
+
+	max, err := strconv.Atoi(maxpages)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("max pages:", max)
 }
 
 func TestExample(t *testing.T) {

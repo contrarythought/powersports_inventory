@@ -95,8 +95,10 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 		}()
 	}
 
-	for i := 0; i < max; i++ {
-		url = url[:len(url)-1] + strconv.Itoa(i+1)
+	origLen := len(url)
+	// TODO: change for loop back to max
+	for i := 0; i < (max + 1 - max); i++ {
+		url = url[:origLen-1] + strconv.Itoa(i+1)
 	}
 
 	scrapeCancel()
