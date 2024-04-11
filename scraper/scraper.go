@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"rumbleon_inventory/errorhandling"
 	"strconv"
 	"sync"
@@ -21,7 +22,7 @@ type Vehicle struct {
 }
 
 const (
-	USER_AGENT       = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`
+	// USER_AGENT       = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`
 	WAIT_ELEMENT     = `#Layer_2`
 	MAX_PAGE_ELE_SEL = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div:nth-child(6) > div.css-l0mhay-emotion--Pagination--SearchPagination > a:nth-child(4)`
 	NUM_WORKERS      = 5
@@ -32,7 +33,7 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 	ret := make(map[Brand][]Vehicle)
 
 	opts := []chromedp.ExecAllocatorOption{
-		chromedp.UserAgent(USER_AGENT),
+		chromedp.UserAgent(GrabUserAgent()),
 		chromedp.Headless,
 	}
 
@@ -78,7 +79,7 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 			for {
 				select {
 				case url := <-urlChan:
-					vehs, err := scrapeInventory(url, opts)
+					vehs, err := ScrapeInventory(url, opts)
 					if err != nil {
 						errChan <- err
 					}
@@ -111,6 +112,20 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 	return ret, nil
 }
 
+func GrabUserAgent() string {
+	userAgents := []string{
+		`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
+		`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36`,
+		`Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0`,
+		`Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.94 Chrome/37.0.2062.94 Safari/537.36`,
+		`Mozilla/5.0 (iPad; CPU OS 8_4_1 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12H321 Safari/600.1.4`,
+	}
+
+	idx := rand.Intn(len(userAgents))
+
+	return userAgents[idx]
+}
+
 const (
 	URL      = "https://www.rumbleon.com/buy?page=1"
 	URL_TEST = "https://scrapingclub.com/exercise/list_infinite_scroll/"
@@ -120,7 +135,7 @@ const (
 
 // TODO
 // grabs vehicles from the url
-func scrapeInventory(url string, opts []chromedp.ExecAllocatorOption) ([]Vehicle, error) {
+func ScrapeInventory(url string, opts []chromedp.ExecAllocatorOption) ([]Vehicle, error) {
 	ret := []Vehicle{}
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)

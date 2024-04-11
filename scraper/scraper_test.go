@@ -153,7 +153,7 @@ func TestMaxPage(t *testing.T) {
 	url := `https://www.rumbleon.com/buy?page=1`
 
 	opts := []chromedp.ExecAllocatorOption{
-		chromedp.UserAgent(USER_AGENT),
+		chromedp.UserAgent(GrabUserAgent()),
 		chromedp.Headless,
 	}
 
@@ -182,7 +182,7 @@ func TestMaxPage(t *testing.T) {
 
 func TestExample(t *testing.T) {
 	opts := []chromedp.ExecAllocatorOption{
-		chromedp.UserAgent(USER_AGENT),
+		chromedp.UserAgent(GrabUserAgent()),
 		chromedp.Headless,
 	}
 
@@ -227,5 +227,12 @@ func TestExample(t *testing.T) {
 		fmt.Println(model)
 		fmt.Println(price)
 		fmt.Println()
+	}
+}
+
+func TestUA(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		ua := GrabUserAgent()
+		fmt.Println(ua)
 	}
 }
