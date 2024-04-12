@@ -7,7 +7,9 @@ import (
 	"math/rand"
 	"rumbleon_inventory/errorhandling"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
@@ -34,7 +36,6 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.UserAgent(GrabUserAgent()),
-		chromedp.Headless,
 	}
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
@@ -60,6 +61,8 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 		return nil, err
 	}
 
+	fmt.Println("max:", max)
+
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
@@ -79,10 +82,12 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 			for {
 				select {
 				case url := <-urlChan:
-					vehs, err := ScrapeInventory(url, opts)
+					fmt.Println("url received:", url)
+					vehs, err := ScrapeInventory(url, opts, &taskCtx)
 					if err != nil {
 						errChan <- err
 					}
+					fmt.Println("vehicle list from scrapeInventory:", vehs)
 
 					mu.Lock()
 					vehicles = append(vehicles, vehs...)
@@ -100,6 +105,10 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 	// TODO: change for loop back to max
 	for i := 0; i < (max + 1 - max); i++ {
 		url = url[:origLen-1] + strconv.Itoa(i+1)
+		fmt.Println("sending url:", url)
+		time.Sleep(time.Second * 1)
+
+		urlChan <- url
 	}
 
 	scrapeCancel()
@@ -115,10 +124,6 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 func GrabUserAgent() string {
 	userAgents := []string{
 		`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
-		`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36`,
-		`Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0`,
-		`Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.94 Chrome/37.0.2062.94 Safari/537.36`,
-		`Mozilla/5.0 (iPad; CPU OS 8_4_1 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12H321 Safari/600.1.4`,
 	}
 
 	idx := rand.Intn(len(userAgents))
@@ -135,19 +140,26 @@ const (
 
 // TODO
 // grabs vehicles from the url
-func ScrapeInventory(url string, opts []chromedp.ExecAllocatorOption) ([]Vehicle, error) {
+func ScrapeInventory(url string, opts []chromedp.ExecAllocatorOption, taskCtx *context.Context) ([]Vehicle, error) {
+	fmt.Println("scraping:", url)
+	time.Sleep(time.Second * 2)
+
 	ret := []Vehicle{}
 
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
+	/*
+		allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+		defer cancel()
+	*/
 
-	taskCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	/*
+		taskCtx, cancel := chromedp.NewContext(allocCtx)
+		defer cancel()
+	*/
 
 	var nodes []*cdp.Node
 
 	// <div class="ant-card css-1gl0vip-emotion--Result--cardCss ant-card-bordered ant-card-hoverable">
-	err := chromedp.Run(taskCtx,
+	err := chromedp.Run(*taskCtx,
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(ENDING_ELEMENT),
 		chromedp.Nodes(".ant-card-body", &nodes, chromedp.ByQueryAll),
@@ -167,7 +179,7 @@ func ScrapeInventory(url string, opts []chromedp.ExecAllocatorOption) ([]Vehicle
 
 	var brand, model, price string
 	for _, node := range nodes {
-		err = chromedp.Run(taskCtx,
+		err = chromedp.Run(*taskCtx,
 			chromedp.Text(`div.ant-card-body > div > div:nth-child(2) > span`, &brand, chromedp.ByQuery, chromedp.FromNode(node)),
 			chromedp.Text(`div.ant-card-body > div > div:nth-child(3) > span`, &model, chromedp.ByQuery, chromedp.FromNode(node)),
 			chromedp.Text(`span.ant-typography > strong`, &price, chromedp.ByQuery, chromedp.FromNode(node)),
@@ -175,6 +187,14 @@ func ScrapeInventory(url string, opts []chromedp.ExecAllocatorOption) ([]Vehicle
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		price = strings.ReplaceAll(price[1:], ",", "")
+
+		ret = append(ret, Vehicle{
+			Brand: brand,
+			Model: model,
+			Price: price,
+		})
 
 		fmt.Println(brand)
 		fmt.Println(model)

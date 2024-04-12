@@ -183,7 +183,6 @@ func TestMaxPage(t *testing.T) {
 func TestExample(t *testing.T) {
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.UserAgent(GrabUserAgent()),
-		chromedp.Headless,
 	}
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
