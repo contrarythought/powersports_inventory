@@ -31,10 +31,10 @@ func TestAverage(t *testing.T) {
 		t.Error(err)
 	}
 
-	avg, err := calculateAvgPrice(vehMap, errChan)
+	avg, amount, err := calculateAvgPrice(vehMap, errChan)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Println(avg)
+	fmt.Println("amount of inventory:", amount, " avg_price:", avg, " inventory value:", (avg * float64(amount)))
 }
