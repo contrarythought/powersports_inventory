@@ -8,6 +8,8 @@ import (
 	"os"
 	"rumbleon_inventory/dbupload"
 	"rumbleon_inventory/scraper"
+
+	_ "github.com/lib/pq"
 )
 
 const (
