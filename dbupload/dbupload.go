@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"rumbleon_inventory/errorhandling"
 	"rumbleon_inventory/scraper"
@@ -13,6 +14,9 @@ import (
 )
 
 func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, errChan chan error, errLog *log.Logger) error {
+	fmt.Println("uploading data into DB...")
+	time.Sleep(time.Second * 2)
+
 	go errorhandling.ErrorResolver(errChan, errLog, 3)
 
 	day := time.Now()

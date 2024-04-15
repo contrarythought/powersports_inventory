@@ -6,6 +6,7 @@ import (
 	"os"
 	"rumbleon_inventory/scraper"
 	"testing"
+	"time"
 )
 
 func TestTime(t *testing.T) {
@@ -39,4 +40,45 @@ func TestAverage(t *testing.T) {
 	}
 
 	fmt.Println("amount of inventory:", amount, " avg_price:", avg, " inventory value:", (avg * float64(amount)))
+}
+
+// TODO
+func TestUpload(t *testing.T) {
+	day := time.Now()
+	testVehMap := map[scraper.Brand][]scraper.Vehicle{
+		"ford": []scraper.Vehicle{
+			{
+				Brand: "ford",
+				Model: "f150",
+				Price: "40000",
+			},
+			{
+				Brand: "ford",
+				Model: "fiesta",
+				Price: "20000",
+			},
+		},
+		"toyota": []scraper.Vehicle{
+			{
+				Brand: "toyota",
+				Model: "corolla",
+				Price: "30000",
+			},
+			{
+				Brand: "toyota",
+				Model: "tundra",
+				Price: "40000",
+			},
+		},
+	}
+
+	errChan := make(chan error)
+
+	avgPrice, amount, err := calculateAvgPrice(testVehMap, errChan)
+	if err != nil {
+		t.Error(err)
+	}
+
+	queryStr := `INSERT INTO timeseries.inventory_tracker (timestamp, inventory_count, avg_price, inventory_value_estimate) VALUES ($1, $2, $3, $4)`
+
 }
