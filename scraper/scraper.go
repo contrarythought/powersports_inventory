@@ -28,7 +28,7 @@ const (
 	WAIT_ELEMENT     = `#Layer_2`
 	MAX_PAGE_ELE_SEL = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div:nth-child(6) > div.css-l0mhay-emotion--Pagination--SearchPagination > a:nth-child(4)`
 	TOTAL_INVENTORY  = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div.ant-row.css-1qi96nr-emotion--BuyPage--BuyPage > div.ant-col.ant-col-xs-24.ant-col-md-12 > div > div:nth-child(2) > h4`
-	NUM_WORKERS      = 5
+	NUM_WORKERS      = 1 // TODO: change this
 )
 
 // sets up the process of scraping vehicles (grabs max page to loop through)
@@ -97,6 +97,8 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 					mu.Lock()
 					vehicles = append(vehicles, vehs...)
 					mu.Unlock()
+
+					time.Sleep(2 * time.Second)
 				case <-scrapeCtx.Done():
 					if len(urlChan) == 0 {
 						return
@@ -108,7 +110,7 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 
 	origLen := len(url)
 	// TODO: change for loop back to max
-	for i := 0; i < NUM_WORKERS; i++ {
+	for i := 0; i < 5; i++ {
 		url = url[:origLen-1] + strconv.Itoa(i+1)
 		fmt.Println("sending url:", url)
 		time.Sleep(time.Second * 1)

@@ -25,6 +25,9 @@ func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, totalInv
 		return err
 	}
 
+	fmt.Println("number of vehicles scraped: ", amount)
+	time.Sleep(time.Second * 1)
+
 	inventoryValue := avg_price * float64(amount)
 
 	queryStr := `INSERT INTO timeseries.inventory_tracker (timestamp, inventory_count, avg_price, inventory_value_estimate) VALUES ($1, $2, $3, $4)`
@@ -46,7 +49,6 @@ func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, totalInv
 	return nil
 }
 
-// TODO: test
 func calculateAvgPrice(vehicleMap map[scraper.Brand][]scraper.Vehicle, errChan chan error) (float64, int, error) {
 	amount := 0
 	sum := 0.0
