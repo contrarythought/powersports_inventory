@@ -16,7 +16,7 @@ import (
 )
 
 func TestTime(t *testing.T) {
-	if err := Upload(nil, nil, nil, nil); err != nil {
+	if err := Upload(nil, nil, 0, nil, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -33,19 +33,19 @@ func TestAverage(t *testing.T) {
 
 	errLog := log.New(testErrFile, "err:", log.Lshortfile|log.LstdFlags)
 
-	vehMap, err := scraper.Scrape(scraper.URL, errChan, errLog)
+	vehMap, totalInventory, err := scraper.Scrape(scraper.URL, errChan, errLog)
 	if err != nil {
 		t.Error(err)
 	}
 
 	fmt.Println("vehicleMap:", vehMap)
 
-	avg, amount, err := calculateAvgPrice(vehMap, errChan)
+	avg, _, err := calculateAvgPrice(vehMap, errChan)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Println("amount of inventory:", amount, " avg_price:", avg, " inventory value:", (avg * float64(amount)))
+	fmt.Println("amount of inventory:", totalInventory, " avg_price:", avg, " inventory value:", (avg * float64(totalInventory)))
 }
 
 // it works

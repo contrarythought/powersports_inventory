@@ -91,12 +91,12 @@ func main() {
 	errChan := make(chan error)
 	defer close(errChan)
 
-	vehicleMap, err := scraper.Scrape(URL, errChan, errLog)
+	vehicleMap, totalInventory, err := scraper.Scrape(URL, errChan, errLog)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := dbupload.Upload(db, vehicleMap, errChan, errLog); err != nil {
+	if err := dbupload.Upload(db, vehicleMap, totalInventory, errChan, errLog); err != nil {
 		log.Fatal(err)
 	}
 

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, errChan chan error, errLog *log.Logger) error {
+func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, totalInventory int, errChan chan error, errLog *log.Logger) error {
 	fmt.Println("uploading data into DB...")
 	time.Sleep(time.Second * 2)
 
@@ -29,7 +29,7 @@ func Upload(db *sql.DB, vehicleMap map[scraper.Brand][]scraper.Vehicle, errChan 
 
 	queryStr := `INSERT INTO timeseries.inventory_tracker (timestamp, inventory_count, avg_price, inventory_value_estimate) VALUES ($1, $2, $3, $4)`
 
-	res, err := db.Exec(queryStr, day, amount, avg_price, inventoryValue)
+	res, err := db.Exec(queryStr, day, totalInventory, avg_price, inventoryValue)
 	if err != nil {
 		return err
 	}

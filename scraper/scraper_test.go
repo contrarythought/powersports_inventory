@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestScrape(t *testing.T) {
 
 	errLog := log.New(testLog, "err:", log.Lshortfile|log.LstdFlags)
 
-	vehicleMap, err := Scrape(URL, errChan, errLog)
+	vehicleMap, _, err := Scrape(URL, errChan, errLog)
 	if err != nil {
 		t.Error(err)
 	}
@@ -154,7 +155,6 @@ func TestMaxPage(t *testing.T) {
 
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.UserAgent(GrabUserAgent()),
-		chromedp.Headless,
 	}
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
@@ -163,11 +163,12 @@ func TestMaxPage(t *testing.T) {
 	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
 	defer taskCancel()
 
-	var maxpages string
+	var maxpages, totalInventory string
 	if err := chromedp.Run(taskCtx,
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(WAIT_ELEMENT),
 		chromedp.Text(MAX_PAGE_ELE_SEL, &maxpages, chromedp.ByQuery),
+		chromedp.Text(TOTAL_INVENTORY, &totalInventory, chromedp.ByQuery),
 	); err != nil {
 		t.Error(err)
 	}
@@ -178,6 +179,11 @@ func TestMaxPage(t *testing.T) {
 	}
 
 	fmt.Println("max pages:", max)
+	fmt.Println("inventory:", totalInventory)
+	arr := strings.Split(totalInventory, " ")
+	totalInventoryTrimmed := strings.TrimSpace(string(arr[0]))
+	fmt.Println(totalInventoryTrimmed)
+
 }
 
 func TestExample(t *testing.T) {

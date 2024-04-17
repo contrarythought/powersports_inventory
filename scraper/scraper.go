@@ -27,11 +27,12 @@ const (
 	// USER_AGENT       = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`
 	WAIT_ELEMENT     = `#Layer_2`
 	MAX_PAGE_ELE_SEL = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div:nth-child(6) > div.css-l0mhay-emotion--Pagination--SearchPagination > a:nth-child(4)`
-	NUM_WORKERS      = 3
+	TOTAL_INVENTORY  = `#root > div > section > main > div.css-15g0dol-Base.e1n4b2jv0 > div.ant-row.css-1qi96nr-emotion--BuyPage--BuyPage > div.ant-col.ant-col-xs-24.ant-col-md-12 > div > div:nth-child(2) > h4`
+	NUM_WORKERS      = 5
 )
 
 // sets up the process of scraping vehicles (grabs max page to loop through)
-func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Vehicle, error) {
+func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Vehicle, int, error) {
 	ret := make(map[Brand][]Vehicle)
 
 	opts := []chromedp.ExecAllocatorOption{
@@ -47,21 +48,25 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 	// start thread to handle concurrent errors
 	go errorhandling.ErrorResolver(errChan, errLog, 3)
 
-	var maxpages string
+	var maxpages, totalInventory string
 	if err := chromedp.Run(taskCtx,
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(WAIT_ELEMENT),
 		chromedp.Text(MAX_PAGE_ELE_SEL, &maxpages, chromedp.ByQuery),
+		chromedp.Text(TOTAL_INVENTORY, &totalInventory, chromedp.ByQuery),
 	); err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
-	max, err := strconv.Atoi(maxpages)
+	_, err := strconv.Atoi(maxpages)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
-	fmt.Println("max:", max)
+	inventory, err := convertInventoryEle(totalInventory)
+	if err != nil {
+		return nil, -1, err
+	}
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -103,7 +108,7 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 
 	origLen := len(url)
 	// TODO: change for loop back to max
-	for i := 0; i < (max + 1 - max); i++ {
+	for i := 0; i < NUM_WORKERS; i++ {
 		url = url[:origLen-1] + strconv.Itoa(i+1)
 		fmt.Println("sending url:", url)
 		time.Sleep(time.Second * 1)
@@ -118,7 +123,19 @@ func Scrape(url string, errChan chan error, errLog *log.Logger) (map[Brand][]Veh
 		ret[Brand(v.Brand)] = append(ret[Brand(v.Brand)], v)
 	}
 
-	return ret, nil
+	return ret, inventory, nil
+}
+
+func convertInventoryEle(inventoryStr string) (int, error) {
+	arr := strings.Split(inventoryStr, " ")
+	invStrTrim := strings.TrimSpace(arr[0])
+	noComma := strings.ReplaceAll(invStrTrim, ",", "")
+	invInt, err := strconv.Atoi(noComma)
+	if err != nil {
+		return -1, err
+	}
+
+	return invInt, nil
 }
 
 func GrabUserAgent() string {
